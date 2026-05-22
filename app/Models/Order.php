@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Order extends Model
 {
     use HasFactory;
+    use \App\Models\Traits\BelongsToTenant;
 
     protected $fillable = [
         'customer_name',
@@ -19,6 +20,7 @@ class Order extends Model
         'whatsapp_sent',
         'user_id',
         'address_id',
+        'tenant_id',
     ];
 
     protected $casts = [

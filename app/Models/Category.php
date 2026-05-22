@@ -8,6 +8,8 @@ use Illuminate\Support\Str;
 
 class Category extends Model
 {
+    use \App\Models\Traits\BelongsToTenant;
+
     protected $fillable = [
         'name',
         'slug',
@@ -15,6 +17,7 @@ class Category extends Model
         'image',
         'is_active',
         'sort_order',
+        'tenant_id',
     ];
 
     protected function casts(): array

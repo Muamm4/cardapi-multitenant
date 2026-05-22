@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Product extends Model
 {
+    use \App\Models\Traits\BelongsToTenant;
+
     protected $fillable = [
         'category_id',
         'name',
@@ -16,6 +18,7 @@ class Product extends Model
         'image',
         'is_active',
         'sort_order',
+        'tenant_id',
     ];
 
     protected $appends = [
