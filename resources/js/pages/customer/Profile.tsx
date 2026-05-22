@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { User, Phone, Mail, Save, MapPin, Plus, Trash2, CheckCircle, LogOut, Badge } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BottomNav } from '@/components/public/BottomNav';
+import type { SharedData } from '@/types';
 
 interface Address {
     id: number;
@@ -30,6 +31,7 @@ interface ProfileProps {
 }
 
 export default function Profile({ auth, addresses = [], defaultAddress = null }: ProfileProps) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { data, setData, patch, processing, errors } = useForm({
         name: auth.user.name,
         email: auth.user.email,
@@ -47,28 +49,28 @@ export default function Profile({ auth, addresses = [], defaultAddress = null }:
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        patch(route('profile.update'));
+        patch(route('profile.update', { tenant: tenantSlug }));
     };
 
     const handleAddAddress = (e: React.FormEvent) => {
         e.preventDefault();
-        addressForm.post(route('addresses.store'), {
+        addressForm.post(route('addresses.store', { tenant: tenantSlug }), {
             onSuccess: () => addressForm.reset(),
         });
     };
 
     const handleSetDefault = (id: number) => {
-        router.patch(route('addresses.update', id), { is_default: true });
+        router.patch(route('addresses.update', { tenant: tenantSlug, id }), { is_default: true });
     };
 
     const handleDeleteAddress = (id: number) => {
         if (confirm('Tem certeza que deseja excluir este endereço?')) {
-            router.delete(route('addresses.destroy', id));
+            router.delete(route('addresses.destroy', { tenant: tenantSlug, id }));
         }
     };
 
     const handleLogout = () => {
-        router.post(route('logout'));
+        router.post(route('logout', { tenant: tenantSlug }));
     };
 
     return (

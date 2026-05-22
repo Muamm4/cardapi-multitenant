@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 import { BottomNav } from '@/components/public/BottomNav';
+import type { SharedData } from '@/types';
 
 type RegisterForm = {
     name: string;
@@ -18,6 +19,7 @@ type RegisterForm = {
 };
 
 export default function Register() {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { data, setData, post, processing, errors, reset } = useForm<Required<RegisterForm>>({
         name: '',
         email: '',
@@ -27,7 +29,7 @@ export default function Register() {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('register'), {
+        post(route('register', { tenant: tenantSlug }), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
@@ -110,7 +112,7 @@ export default function Register() {
 
                 <div className="text-muted-foreground text-center text-sm">
                     Já tem conta?{' '}
-                    <TextLink href={route('login')} tabIndex={6}>
+                    <TextLink href={route('login', { tenant: tenantSlug })} tabIndex={6}>
                         Entrar
                     </TextLink>
                 </div>

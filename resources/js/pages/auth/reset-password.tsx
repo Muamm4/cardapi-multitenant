@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import type { SharedData } from '@/types';
 
 interface ResetPasswordProps {
     token: string;
@@ -21,6 +22,7 @@ type ResetPasswordForm = {
 };
 
 export default function ResetPassword({ token, email }: ResetPasswordProps) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { data, setData, post, processing, errors, reset } = useForm<Required<ResetPasswordForm>>({
         token: token,
         email: email,
@@ -30,7 +32,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('password.store'), {
+        post(route('password.store', { tenant: tenantSlug }), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };

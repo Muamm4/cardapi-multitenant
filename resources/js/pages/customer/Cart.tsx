@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useCartStore } from '@/stores/cartStore';
 import { BottomNav } from '@/components/public/BottomNav';
+import type { SharedData } from '@/types';
 
 function formatPrice(price: number): string {
     return new Intl.NumberFormat('pt-BR', {
@@ -16,6 +17,7 @@ function formatPrice(price: number): string {
 }
 
 export default function Cart() {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { items, updateQuantity, removeItem, totalPrice, clearCart } = useCartStore();
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
@@ -86,7 +88,7 @@ export default function Cart() {
                     <Button
                         variant="outline"
                         className="w-full gap-2"
-                        onClick={() => window.location.href = route('menu')}
+                        onClick={() => window.location.href = route('menu', { tenant: tenantSlug })}
                     >
                         <ArrowLeft className="size-4" />
                         Voltar ao Cardápio
@@ -115,7 +117,7 @@ export default function Cart() {
                         <ShoppingCart className="size-16 text-muted-foreground/20 mb-4" />
                         <h3 className="text-lg font-medium">Carrinho vazio</h3>
                         <p className="text-muted-foreground mb-6">Adicione itens do cardápio para começar.</p>
-                        <Button onClick={() => window.location.href = route('menu')} className="gap-2">
+                        <Button onClick={() => window.location.href = route('menu', { tenant: tenantSlug })} className="gap-2">
                             Ver Cardápio
                         </Button>
                     </div>

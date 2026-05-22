@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 import { BottomNav } from '@/components/public/BottomNav';
+import type { SharedData } from '@/types';
 
 type LoginForm = {
     email: string;
@@ -23,6 +24,7 @@ interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword }: LoginProps) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
         email: '',
         password: '',
@@ -31,7 +33,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('login'), {
+        post(route('login', { tenant: tenantSlug }), {
             onFinish: () => reset('password'),
         });
     };
@@ -62,7 +64,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <div className="flex items-center">
                             <Label htmlFor="password">Senha</Label>
                             {canResetPassword && (
-                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
+                                <TextLink href={route('password.request', { tenant: tenantSlug })} className="ml-auto text-sm" tabIndex={5}>
                                     Esqueceu a senha?
                                 </TextLink>
                             )}
@@ -99,7 +101,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                 <div className="text-muted-foreground text-center text-sm">
                     Não tem conta?{' '}
-                    <TextLink href={route('register')} tabIndex={5}>
+                    <TextLink href={route('register', { tenant: tenantSlug })} tabIndex={5}>
                         Cadastre-se
                     </TextLink>
                 </div>

@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
@@ -28,10 +28,11 @@ export default function Password() {
         password_confirmation: '',
     });
 
+    const tenantSlug = usePage().props.tenant?.slug;
     const updatePassword: FormEventHandler = (e) => {
         e.preventDefault();
 
-        put(route('password.update'), {
+        put(route('password.update', { tenant: tenantSlug }), {
             preserveScroll: true,
             onSuccess: () => reset(),
             onError: (errors) => {

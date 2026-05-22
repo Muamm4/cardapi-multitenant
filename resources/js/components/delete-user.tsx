@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
 import InputError from '@/components/input-error';
@@ -11,13 +11,14 @@ import HeadingSmall from '@/components/heading-small';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function DeleteUser() {
+    const tenantSlug = usePage().props.tenant?.slug;
     const passwordInput = useRef<HTMLInputElement>(null);
     const { data, setData, delete: destroy, processing, reset, errors, clearErrors } = useForm<Required<{ password: string }>>({ password: '' });
 
     const deleteUser: FormEventHandler = (e) => {
         e.preventDefault();
 
-        destroy(route('profile.destroy'), {
+        destroy(route('profile.destroy', { tenant: tenantSlug }), {
             preserveScroll: true,
             onSuccess: () => closeModal(),
             onError: () => passwordInput.current?.focus(),

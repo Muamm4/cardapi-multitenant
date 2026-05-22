@@ -1,10 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Order } from '@/types';
 import { Package, Clock, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from '@/components/public/BottomNav';
+import type { SharedData } from '@/types';
 
 interface OrdersProps {
     orders: Order[];
@@ -27,6 +28,7 @@ function getStatusBadge(status: Order['status']) {
 }
 
 export default function Orders({ orders }: OrdersProps) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     return (
         <div className="h-screen bg-background flex flex-col overflow-hidden">
             <Head title="Meus Pedidos" />
@@ -46,7 +48,7 @@ export default function Orders({ orders }: OrdersProps) {
                         <Package className="size-16 text-muted-foreground/20 mb-4" />
                         <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
                         <p className="text-muted-foreground mb-6">Você ainda não fez nenhum pedido.</p>
-                        <Button onClick={() => window.location.href = route('menu')} className="gap-2">
+                        <Button onClick={() => window.location.href = route('menu', { tenant: tenantSlug })} className="gap-2">
                             Fazer primeiro pedido
                         </Button>
                     </div>
@@ -76,7 +78,7 @@ export default function Orders({ orders }: OrdersProps) {
                                                     {formatPrice(order.total)}
                                                 </p>
                                             </div>
-                                            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.href = route('menu')}>
+                                            <Button variant="outline" size="sm" className="gap-2" onClick={() => window.location.href = route('menu', { tenant: tenantSlug })}>
                                                 Pedir novamente
                                             </Button>
                                         </div>

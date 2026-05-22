@@ -1,5 +1,4 @@
-// Components
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -9,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
+import type { SharedData } from '@/types';
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { data, setData, post, processing, errors } = useForm<Required<{ email: string }>>({
         email: '',
     });
@@ -18,7 +19,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('password.email'));
+        post(route('password.email', { tenant: tenantSlug }));
     };
 
     return (
@@ -55,7 +56,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
                 <div className="text-muted-foreground space-x-1 text-center text-sm">
                     <span>Ou volte para</span>
-                    <TextLink href={route('login')}>entrar</TextLink>
+                    <TextLink href={route('login', { tenant: tenantSlug })}>entrar</TextLink>
                 </div>
             </div>
         </AuthLayout>

@@ -1,19 +1,20 @@
-// Components
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/auth-layout';
+import type { SharedData } from '@/types';
 
 export default function VerifyEmail({ status }: { status?: string }) {
+    const tenantSlug = usePage<SharedData>().props.tenant?.slug;
     const { post, processing } = useForm({});
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('verification.send'));
+        post(route('verification.send', { tenant: tenantSlug }));
     };
 
     return (
@@ -32,7 +33,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                     Reenviar e-mail de verificação
                 </Button>
 
-                <TextLink href={route('logout')} method="post" className="mx-auto block text-sm">
+                <TextLink href={route('logout', { tenant: tenantSlug })} method="post" className="mx-auto block text-sm">
                     Sair
                 </TextLink>
             </form>

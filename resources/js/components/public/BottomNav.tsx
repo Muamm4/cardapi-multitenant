@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import { ShoppingBag, User, ShoppingCart, ClipboardList } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export function BottomNav() {
     const { url } = usePage();
@@ -8,25 +7,25 @@ export function BottomNav() {
     const navItems = [
         { 
             name: 'Cardápio', 
-            href: route('menu'), 
+            href: '/', 
             icon: ShoppingBag,
-            active: url === '/' || url.startsWith('/menu') || url === route('menu')
+            active: url === '/'
         },
         { 
             name: 'Carrinho', 
-            href: route('cart'), 
+            href: '/cart', 
             icon: ShoppingCart,
             active: url.startsWith('/cart')
         },
         { 
             name: 'Pedidos', 
-            href: route('customer.orders'), 
+            href: '/my-orders', 
             icon: ClipboardList,
             active: url.startsWith('/my-orders')
         },
         { 
             name: 'Conta', 
-            href: route('profile.edit'), 
+            href: '/settings/profile', 
             icon: User,
             active: url.startsWith('/settings/profile')
         },
