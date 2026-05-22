@@ -1,111 +1,238 @@
-# 🍕 Cardápio Digital Whitelabel (Premium Edition)
+# 🍕 Cardápio Digital Multi-Tenant
 
-Um sistema de alta performance para cardápios online e gestão de pedidos via WhatsApp, desenvolvido com foco total em conversão e experiência do usuário mobile. Este projeto é um **Whitelabel**, permitindo a adaptação rápida para qualquer restaurante, pizzaria ou lanchonete.
-
-## 🚀 Visão Geral
-
-O sistema une a robustez de um painel administrativo completo com a fluidez de um aplicativo nativo para o cliente final, utilizando a tecnologia de **PWA (Progressive Web App)** e suporte a **NativePHP Mobile**.
-
-### 🌟 Principais Funcionalidades
-
-#### 📱 Para o Cliente (Experiência App-Like)
-- **PWA (Progressive Web App)**: O cardápio pode ser instalado diretamente no celular do cliente, funcionando como um app sem a necessidade de baixar da App Store/Play Store.
-- **Navegação Mobile-First**: Interface otimizada com **Bottom Navigation** (barra inferior), respeitando as *Safe Areas* de dispositivos modernos (notch e barras de gestos).
-- **Sistema de Contas**: Cadastro de usuários para salvar dados de perfil e histórico de pedidos.
-- **Gestão de Endereços**: Suporte a múltiplos endereços salvos por usuário, com definição de endereço padrão para agilizar o checkout.
-- **Carrinho Inteligente**: Persistência de itens, cálculo automático de totais e interface fluida.
-- **Checkout via WhatsApp**: Geração de pedidos estruturados enviados diretamente para o WhatsApp do restaurante.
-- **Suporte a Promoções**: Destaque visual para produtos em oferta com preços riscados e badges.
-
-#### 🛠️ Para o Administrador (Painel de Gestão)
-- **Dashboard de Métricas**: Visão geral de pedidos, produtos e categorias.
-- **Gestão de Categorias**: CRUD completo com controle de ordem de exibição e status.
-- **Gestão de Produtos**: Controle de estoque, upload de imagens, preços promocionais e descrições.
-- **Gestão de Pedidos**: Fluxo de aceitação/recusa de pedidos com visualização detalhada dos itens e dados do cliente.
-- **Ações Rápidas**: Aprovação ou recusa de pedidos diretamente pelo Dashboard.
+Sistema de cardápios online multi-restaurante com gestão de pedidos via WhatsApp. Suporta múltiplos restaurantes (tenants) separados por subdomínio, cada um com seu próprio cardápio, produtos, categorias e painel administrativo.
 
 ---
 
-## 📸 Screenshots
+## 🏗️ Arquitetura Multi-Tenant
 
-| Cardápio Público | Painel Administrativo | Carrinho de Compras |
-| :---: | :---: | :---: |
-| ![Cardápio Público](./screenshots/public-menu.png) | ![Painel Admin](./screenshots/admin-dashboard.png) | ![Carrinho](./screenshots/cart-drawer.png) |
+### Modelo: Subdomínio por Tenant
 
-| Gestão de Produtos | Detalhes do Pedido | Fluxo de Checkout |
-| :---: | :---: | :---: |
-| ![Produtos](./screenshots/admin-products.png) | ![Pedido](./screenshots/admin-order-detail.png) | ![Checkout](./screenshots/checkout-flow.png) |
+Cada restaurante é um **tenant** identificado por um subdomínio único:
+
+```
+🌐 localhost:8000                          → Catálogo de restaurantes
+🍕 pizzaria-brasil.localhost:8000          → Cardápio da Pizzaria Brasil
+🍔 hamburgueria-do-ze.localhost:8000      → Cardápio da Hamburgueria do Zé
+🍣 sushi-bar-oriental.localhost:8000      → Cardápio do Sushi Bar Oriental
+🔧 {slug}.localhost:8000/admin            → Painel administrativo
+```
+
+No **localhost**, subdomínios funcionam nativamente — `*.localhost` resolve para `127.0.0.1` sem configuração extra.
+
+Em produção, basta configurar um wildcard DNS (`*.seudominio.com`) apontando para o servidor.
+
+### Tabela `tenants`
+
+```php
+Schema::create('tenants', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');              // Nome do restaurante
+    $table->string('slug')->unique();    // Identificador do subdomínio
+    $table->string('whatsapp');          // WhatsApp para pedidos
+    $table->boolean('is_active')->default(true);
+    $table->timestamps();
+});
+```
+
+### Escopo por Tenant (Global Scope)
+
+Todas as entidades que pertencem a um restaurante (`Category`, `Product`, `Order`) usam a trait `BelongsToTenant`:
+
+```php
+class Product extends Model
+{
+    use BelongsToTenant; // Aplica global scope `where('tenant_id', X)`
+}
+```
+
+Isso garante que **toda query filtra automaticamente** pelo tenant atual. Sem vazamento de dados entre restaurantes.
+
+### Usuário Global (Cliente)
+
+Diferente dos admins, o **cliente** tem uma conta **global** — `tenant_id = null` — e pode logar em qualquer restaurante. O `User` **não** usa `BelongsToTenant`.
+
+O `tenant_id` só é preenchido para **admins de restaurante**:
+
+| Tipo | tenant_id | Acesso |
+|------|-----------|--------|
+| Cliente | `null` | Loga em qualquer restaurante |
+| Admin do restaurante | ID do tenant | Só gerencia o próprio |
+| Super admin | `null` + `is_admin=true` | Gerencia qualquer tenant |
+
+### Fluxo de Requisição
+
+```
+1. Usuário acessa hamburgueria-do-ze.localhost:8000
+                     │
+2. TenantMiddleware resolve o slug do subdomínio
+                     │
+3. Busca o tenant no banco (cacheado na request)
+                     │
+4. Salva no container: app()->instance('tenant', $tenant)
+                     │
+5. Compartilha com Inertia: 'tenant' => $tenant
+                     │
+6. TenantScope filtra todas as queries automaticamente
+```
+
+### Middleware `TenantMiddleware`
+
+```php
+class TenantMiddleware
+{
+    public function handle(Request $request, Closure $next)
+    {
+        $host = $request->getHost();
+        $domain = config('app.domain');
+        
+        // Extrai o subdomínio: "hamburgueria-do-ze" de "hamburgueria-do-ze.localhost"
+        if (Str::endsWith($host, ".$domain")) {
+            $slug = Str::before($host, ".$domain");
+            $tenant = Tenant::where('slug', $slug)->where('is_active', true)->firstOrFail();
+            app()->instance('tenant', $tenant);
+        }
+        
+        return $next($request);
+    }
+}
+```
+
+### Função Helper `tenant()`
+
+```php
+// app/helpers.php
+if (!function_exists('tenant')) {
+    function tenant(): ?Tenant
+    {
+        return app()->bound('tenant') ? app('tenant') : null;
+    }
+}
+```
+
+Disponível globalmente em controllers, views, e componentes Inertia.
+
+### Rotas (Subdomínio vs Domínio Raiz)
+
+```php
+// web.php — Estrutura de rotas
+
+// === DOMÍNIO RAIZ (Catálogo) ===
+Route::domain('{domain}')  // Ex: localhost:8000
+    ->where('domain', 'localhost|127.0.0.1|[\w\.-]+\.com')
+    ->group(function () {
+        Route::get('/', [TenantCatalogController::class, 'index'])->name('catalog');
+    });
+
+// === SUBDOMÍNIO (Restaurante) ===
+Route::domain('{tenant}.{domain}')  // Ex: pizzaria-brasil.localhost:8000
+    ->group(function () {
+        Route::get('/', [MenuController::class, 'index'])->name('menu');
+        Route::get('/cart', [CartController::class, 'index'])->name('cart');
+        Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::get('/my-orders', [CustomerOrderController::class, 'index'])->name('customer.orders');
+        
+        // Auth (Laravel UI)
+        require __DIR__.'/auth.php';
+        
+        // Admin
+        Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+            Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
+            Route::resource('products', Admin\ProductController::class);
+            Route::resource('categories', Admin\CategoryController::class);
+            Route::get('orders', [Admin\OrderController::class, 'index'])->name('orders.index');
+            // ...
+        });
+    });
+```
+
+### Configuração `.env`
+
+```env
+APP_DOMAIN=localhost        # Domínio base para subdomínios
+SESSION_DOMAIN=.localhost   # Cookie de sessão compartilhado entre subdomínios
+```
+
+`APP_DOMAIN` define o domínio base. Em produção: `APP_DOMAIN=meudominio.com`.
+
+### Ziggy: Parâmetro `tenant` como Default
+
+O middleware `HandleInertiaRequests` injeta o tenant atual como default do Ziggy, permitindo que `route('login')`, `route('menu')` etc. funcionem sem passar o parâmetro manualmente:
+
+```php
+'ziggy' => fn (): array => [
+    ...(new Ziggy)->toArray(),
+    'location' => $request->url(),
+    'defaults' => [
+        'tenant' => tenant()?->slug ?? '',
+    ],
+],
+```
+
+---
+
+## 🚀 Como Executar
+
+```bash
+# 1. Instalar dependências
+composer install
+npm install
+
+# 2. Configurar ambiente
+cp .env.example .env
+php artisan key:generate
+
+# 3. Banco de dados
+touch database/database.sqlite
+php artisan migrate --seed
+
+# 4. Build frontend
+npm run build
+
+# 5. Servir
+php artisan serve
+
+# Acessar:
+#   http://localhost:8000                    → Catálogo
+#   http://pizzaria-brasil.localhost:8000    → Cardápio
+#   http://pizzaria-brasil.localhost:8000/admin → Admin
+```
+
+### Credenciais Admin
+
+```
+E-mail: admin@cardapio.com
+Senha:  admin123
+```
+
+Este admin é **super admin** (`is_admin=true`, `tenant_id=null`) — acessa o painel de qualquer restaurante.
+
+---
+
+## 🧪 Seeders
+
+O seeder cria **3 restaurantes** com dados reais:
+
+| Restaurante | Slug | Categorias | Produtos |
+|-------------|------|-----------|----------|
+| Pizzaria Brasil | `pizzaria-brasil` | 5 | 23 |
+| Hamburgueria do Zé | `hamburgueria-do-ze` | 4 | 17 |
+| Sushi Bar Oriental | `sushi-bar-oriental` | 5 | 20 |
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-O projeto utiliza o estado da arte do ecossistema PHP e JavaScript:
-
-- **Backend**: [Laravel 13](https://laravel.com) (Framework PHP)
-- **Frontend**: [React](https://react.dev) com [Inertia.js](https://inertiajs.com) (SPA Experience)
-- **Estilização**: [Tailwind CSS](https://tailwindcss.com) + [Shadcn UI](https://ui.shadcn.com)
-- **Estado**: [Zustand](https://zustand-demo.pmnd.rs/) (Gerenciamento de estado leve)
-- **Banco de Dados**: SQLite (Simplicidade e portabilidade)
-- **Performance**: [Laravel Octane](https://laravel.com/docs/octane) com [FrankenPHP](https://frankenphp.dev) (Respostas em milissegundos)
-- **Distribuição**: PWA (Web App Instalável) & [NativePHP](https://nativephp.com) (App Nativo)
-
----
-
-## ⚙️ Instalação e Configuração
-
-### Pré-requisitos
-- PHP 8.2+
-- Composer
-- Node.js & NPM
-
-### Passo a Passo
-1. **Clonar o repositório**
-   ```bash
-   git clone <url-do-repositorio>
-   cd laravel-cardapio
-   ```
-
-2. **Instalar dependências**
-   ```bash
-   composer install
-   npm install
-   ```
-
-3. **Configurar ambiente**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
-
-4. **Banco de Dados**
-   ```bash
-   touch database/database.sqlite
-   php artisan migrate --seed
-   ```
-
-5. **Assets e Storage**
-   ```bash
-   npm run build
-   php artisan storage:link
-   ```
-
-6. **Execução (Modo Performance)**
-   ```bash
-   php artisan octane:start --host=0.0.0.0 --port=8000
-   ```
-
----
-
-## 🎯 Customização (Whitelabel)
-
-Para adaptar este sistema para um novo cliente:
-1. **Cores**: Altere as cores primárias no `tailwind.config.js`.
-2. **Identidade**: Atualize a logo no componente `AppLogo.tsx`.
-3. **WhatsApp**: Configure o número do administrador no `.env` (`ADMIN_WHATSAPP`).
-4. **PWA**: Atualize o `manifest.json` e os ícones em `public/icons/` para a marca do cliente.
+| Camada | Tecnologia |
+|--------|-----------|
+| **Backend** | Laravel 13 |
+| **Frontend** | React 19 + Inertia.js (SPA) |
+| **Estilização** | Tailwind CSS 4 + Shadcn UI |
+| **Banco** | SQLite |
+| **Estado** | Zustand |
 
 ---
 
 ## 📄 Licença
-Este projeto é distribuído sob a licença MIT.
+
+MIT
