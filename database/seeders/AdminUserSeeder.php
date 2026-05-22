@@ -2,17 +2,17 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Tenant;
 use Illuminate\Database\Seeder;
 
 class AdminUserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
+        $tenant = Tenant::where('slug', 'pizzaria-brasil')->first();
+
         \App\Models\User::create([
+            'tenant_id' => $tenant?->id,
             'name' => 'Administrador',
             'email' => 'admin@cardapio.com',
             'email_verified_at' => now(),
@@ -21,3 +21,4 @@ class AdminUserSeeder extends Seeder
         ]);
     }
 }
+
