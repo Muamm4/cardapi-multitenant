@@ -1,6 +1,14 @@
 import { LucideIcon } from 'lucide-react';
 import type { Config } from 'ziggy-js';
 
+export interface Tenant {
+    id: number;
+    name: string;
+    slug: string;
+    whatsapp: string | null;
+    is_active: boolean;
+}
+
 export interface Auth {
     user: User;
 }
@@ -28,6 +36,7 @@ export interface SharedData {
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    tenant?: Tenant | null;
     [key: string]: unknown;
 }
 
